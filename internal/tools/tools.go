@@ -11,14 +11,14 @@ import (
 
 	"github.com/tavric-labs/google-search-mcp/internal/config"
 	"github.com/tavric-labs/google-search-mcp/internal/craft"
-	"github.com/tavric-labs/google-search-mcp/internal/cse"
 	"github.com/tavric-labs/google-search-mcp/internal/evidence"
+	"github.com/tavric-labs/google-search-mcp/internal/gemini"
 	"github.com/tavric-labs/google-search-mcp/internal/hits"
 )
 
-// Searcher runs Google Custom Search.
+// Searcher runs grounded Google Search via Gemini.
 type Searcher interface {
-	Search(ctx context.Context, p cse.Params) ([]hits.Hit, error)
+	Search(ctx context.Context, p gemini.Params) ([]hits.Hit, error)
 }
 
 // Fetcher opens one page.
@@ -28,10 +28,9 @@ type Fetcher interface {
 
 // Server holds tool dependencies.
 type Server struct {
-	CSE          Searcher
+	Searcher     Searcher
 	Fetch        Fetcher
 	Hits         *hits.Store
-	CSEID        string
 	MaxResults   int
 	MaxParallel  int
 	MaxOpenChars int
@@ -54,7 +53,6 @@ type CraftArgs struct {
 type SearchArgs struct {
 	Query        string `json:"query" jsonschema:"short Google-ready query from google_craft_query when possible"`
 	Num          int    `json:"num,omitempty" jsonschema:"results to return, default server max up to 10"`
-	Start        int    `json:"start,omitempty" jsonschema:"1-based start index for pagination"`
 	Site         string `json:"site,omitempty" jsonschema:"restrict to one site"`
 	FileType     string `json:"filetype,omitempty" jsonschema:"e.g. pdf"`
 	DateRestrict string `json:"date_restrict,omitempty" jsonschema:"e.g. d7, w1, m1, y1"`
@@ -113,7 +111,7 @@ func (s *Server) CraftQuery(_ context.Context, _ *mcp.CallToolRequest, args Craf
 	return textResult(strings.TrimSpace(b.String()), false), nil, nil
 }
 
-// Search runs one Custom Search request.
+// Search runs one grounded Google Search request.
 func (s *Server) Search(ctx context.Context, request *mcp.CallToolRequest, args SearchArgs) (*mcp.CallToolResult, any, error) {
 	apiKey, failure := apiKeyFrom(request)
 	if failure != nil {
@@ -123,13 +121,13 @@ func (s *Server) Search(ctx context.Context, request *mcp.CallToolRequest, args 
 	if num <= 0 {
 		num = s.MaxResults
 	}
-	found, err := s.CSE.Search(ctx, cse.Params{
-		Query: args.Query, APIKey: apiKey, CSEID: s.CSEID, Num: num, Start: args.Start, Site: args.Site,
+	found, err := s.Searcher.Search(ctx, gemini.Params{
+		Query: args.Query, APIKey: apiKey, Num: num, Site: args.Site,
 		FileType: args.FileType, DateRestrict: args.DateRestrict, ExactTerms: args.ExactTerms,
 		ExcludeTerms: args.ExcludeTerms, GL: args.GL, HL: args.HL, Sort: args.Sort,
 	})
 	if err != nil {
-		return textResult("Google search failed. Check the query and X-Google-Api-Key.", true), nil, nil
+		return textResult("Google search failed. Check the query and X-Gemini-Api-Key (Gemini AI Studio key with Search grounding available).", true), nil, nil
 	}
 	stored := s.Hits.Put(found)
 	return textResult(formatHits(stored), false), nil, nil
@@ -157,8 +155,8 @@ func (s *Server) MultiSearch(ctx context.Context, request *mcp.CallToolRequest, 
 	for _, q := range queries {
 		q := q
 		go func() {
-			h, err := s.CSE.Search(ctx, cse.Params{
-				Query: q, APIKey: apiKey, CSEID: s.CSEID, Num: num, Site: args.Site, FileType: args.FileType,
+			h, err := s.Searcher.Search(ctx, gemini.Params{
+				Query: q, APIKey: apiKey, Num: num, Site: args.Site, FileType: args.FileType,
 				DateRestrict: args.DateRestrict, ExcludeTerms: args.ExcludeTerms,
 			})
 			ch <- outcome{hits: h, err: err}
@@ -182,7 +180,7 @@ func (s *Server) MultiSearch(ctx context.Context, request *mcp.CallToolRequest, 
 		}
 	}
 	if len(merged) == 0 && firstErr != nil {
-		return textResult("Google multi-search failed. Check the queries and X-Google-Api-Key.", true), nil, nil
+		return textResult("Google multi-search failed. Check the queries and X-Gemini-Api-Key.", true), nil, nil
 	}
 	stored := s.Hits.Put(merged)
 	return textResult(formatHits(stored), false), nil, nil
@@ -237,7 +235,7 @@ func apiKeyFrom(request *mcp.CallToolRequest) (string, *mcp.CallToolResult) {
 			return key, nil
 		}
 	}
-	return "", textResult("Missing "+config.APIKeyHeader+". Create a Google API key with Custom Search API enabled and send it in that header.", true)
+	return "", textResult("Missing "+config.APIKeyHeader+". Create a Gemini API key in Google AI Studio and send it in that header.", true)
 }
 
 func formatHits(list []hits.Hit) string {

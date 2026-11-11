@@ -8,15 +8,15 @@ import (
 	"strings"
 )
 
-// APIKeyHeader is the credential header clients send with their Google API key.
-const APIKeyHeader = "X-Google-Api-Key"
+// APIKeyHeader is the credential header clients send with their Gemini API key.
+const APIKeyHeader = "X-Gemini-Api-Key"
 
 // Config is everything the server needs to start.
-// End users supply GOOGLE_API_KEY via APIKeyHeader; the platform owns CSEID.
+// End users supply a Gemini AI Studio API key via APIKeyHeader.
 type Config struct {
 	Port, MCPPath string
-	CSEID         string
 	APIBase       string
+	Model         string
 	MaxResults    int
 	MaxParallel   int
 	MaxOpenChars  int
@@ -67,15 +67,12 @@ func Load(getenv func(string) string) (Config, error) {
 	config := Config{
 		Port:         value("PORT", "8080"),
 		MCPPath:      value("MCP_PATH", "/mcp"),
-		CSEID:        value("GOOGLE_CSE_ID", ""),
-		APIBase:      strings.TrimRight(value("GOOGLE_CSE_API_BASE", "https://www.googleapis.com/customsearch/v1"), "/"),
+		APIBase:      strings.TrimRight(value("GEMINI_API_BASE", "https://generativelanguage.googleapis.com/v1beta"), "/"),
+		Model:        value("GEMINI_MODEL", "gemini-2.5-flash"),
 		MaxResults:   maxResults,
 		MaxParallel:  maxParallel,
 		MaxOpenChars: maxOpen,
 		MaxPackChars: maxPack,
-	}
-	if config.CSEID == "" {
-		return Config{}, errors.New("GOOGLE_CSE_ID is required (platform Programmable Search Engine cx)")
 	}
 	if !strings.HasPrefix(config.MCPPath, "/") || strings.ContainsAny(config.MCPPath, "?#") || strings.HasSuffix(config.MCPPath, "/") {
 		return Config{}, errors.New("MCP_PATH must be an absolute path without trailing slash")

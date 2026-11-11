@@ -1,6 +1,6 @@
-// Command google-search-mcp is a token-efficient Google Custom Search MCP server:
-// craft targeted queries, search slim SERPs, open a few pages, pack citations.
-// Clients authenticate with header X-Google-Api-Key (their Google API key).
+// Command google-search-mcp is a token-efficient Google web search MCP server
+// backed by Gemini Google Search grounding. Clients send X-Gemini-Api-Key
+// (a Gemini AI Studio API key). There is no Custom Search / CSE id.
 package main
 
 import (
@@ -17,8 +17,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/tavric-labs/google-search-mcp/internal/config"
-	"github.com/tavric-labs/google-search-mcp/internal/cse"
 	"github.com/tavric-labs/google-search-mcp/internal/fetch"
+	"github.com/tavric-labs/google-search-mcp/internal/gemini"
 	"github.com/tavric-labs/google-search-mcp/internal/hits"
 	"github.com/tavric-labs/google-search-mcp/internal/tools"
 )
@@ -35,18 +35,17 @@ func run() error {
 		return err
 	}
 	handlers := &tools.Server{
-		CSE:          cse.New(cfg.APIBase),
+		Searcher:     gemini.New(cfg.APIBase, cfg.Model),
 		Fetch:        fetch.New(),
 		Hits:         hits.New(30 * time.Minute),
-		CSEID:        cfg.CSEID,
 		MaxResults:   cfg.MaxResults,
 		MaxParallel:  cfg.MaxParallel,
 		MaxOpenChars: cfg.MaxOpenChars,
 		MaxPackChars: cfg.MaxPackChars,
 	}
 
-	server := mcp.NewServer(&mcp.Implementation{Name: "google-search-mcp", Version: "0.1.0"}, &mcp.ServerOptions{
-		Instructions: "Generic Google web search for any topic. Send X-Google-Api-Key with a Google API key that has Custom Search API enabled. Craft a short targeted query first, search for slim hits, open at most 1-2 pages if needed, then pack evidence. Prefer google_craft_query before google_search. Keep result counts small.",
+	server := mcp.NewServer(&mcp.Implementation{Name: "google-search-mcp", Version: "0.2.0"}, &mcp.ServerOptions{
+		Instructions: "Generic Google web search for any topic via Gemini Search grounding. Send X-Gemini-Api-Key with a Gemini AI Studio API key. Craft a short targeted query first, search for slim hits, open at most 1-2 pages if needed, then pack evidence. Prefer google_craft_query before google_search. Keep result counts small.",
 	})
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "google_craft_query",
@@ -54,7 +53,7 @@ func run() error {
 	}, handlers.CraftQuery)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "google_search",
-		Description: "Generic Google Custom Search for anything. Returns slim hits (title, url, snippet, hit_id). Prefer a crafted query. Default few results.",
+		Description: "Generic Google web search via Gemini grounding. Returns slim hits (title, url, snippet, hit_id). Prefer a crafted query. Default few results.",
 	}, handlers.Search)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "google_multi_search",
@@ -82,7 +81,7 @@ func run() error {
 	httpServer := &http.Server{
 		Addr: ":" + cfg.Port, Handler: mux,
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second,
-		WriteTimeout: 60 * time.Second, IdleTimeout: 60 * time.Second,
+		WriteTimeout: 90 * time.Second, IdleTimeout: 60 * time.Second,
 	}
 	stop, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
@@ -92,7 +91,7 @@ func run() error {
 		defer done()
 		_ = httpServer.Shutdown(shutdown)
 	}()
-	log.Printf("google-search-mcp listening on :%s at %s (header %s)", cfg.Port, cfg.MCPPath, config.APIKeyHeader)
+	log.Printf("google-search-mcp listening on :%s at %s (header %s, model %s)", cfg.Port, cfg.MCPPath, config.APIKeyHeader, cfg.Model)
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
 	}

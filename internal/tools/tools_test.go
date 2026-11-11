@@ -9,7 +9,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/tavric-labs/google-search-mcp/internal/config"
-	"github.com/tavric-labs/google-search-mcp/internal/cse"
+	"github.com/tavric-labs/google-search-mcp/internal/gemini"
 	"github.com/tavric-labs/google-search-mcp/internal/hits"
 )
 
@@ -18,7 +18,7 @@ type fakeSearch struct {
 	lastKey string
 }
 
-func (f *fakeSearch) Search(_ context.Context, p cse.Params) ([]hits.Hit, error) {
+func (f *fakeSearch) Search(_ context.Context, p gemini.Params) ([]hits.Hit, error) {
 	f.lastKey = p.APIKey
 	return append([]hits.Hit{}, f.hits...), nil
 }
@@ -48,7 +48,7 @@ func withAPIKey(key string) *mcp.CallToolRequest {
 func TestCraftThenSearchFlow(t *testing.T) {
 	store := hits.New(0)
 	search := &fakeSearch{hits: []hits.Hit{{Title: "A", URL: "https://example.com/a", Snippet: "enough snippet text for a strong hit here"}}}
-	server := &Server{CSE: search, Fetch: fakeFetch{}, Hits: store, CSEID: "cx", MaxResults: 5, MaxParallel: 3, MaxOpenChars: 1000, MaxPackChars: 2000}
+	server := &Server{Searcher: search, Fetch: fakeFetch{}, Hits: store, MaxResults: 5, MaxParallel: 3, MaxOpenChars: 1000, MaxPackChars: 2000}
 
 	crafted, _, err := server.CraftQuery(context.Background(), nil, CraftArgs{Goal: "please find MCP gateways", Style: "docs"})
 	if err != nil || crafted.IsError {
@@ -72,7 +72,7 @@ func TestCraftThenSearchFlow(t *testing.T) {
 }
 
 func TestSearchRequiresAPIKeyHeader(t *testing.T) {
-	server := &Server{CSE: &fakeSearch{}, Hits: hits.New(0), CSEID: "cx", MaxResults: 5}
+	server := &Server{Searcher: &fakeSearch{}, Hits: hits.New(0), MaxResults: 5}
 	result, _, err := server.Search(context.Background(), nil, SearchArgs{Query: "q"})
 	if err != nil || !result.IsError {
 		t.Fatalf("expected missing-key error, got %+v err=%v", result, err)

@@ -2,41 +2,33 @@ package config
 
 import "testing"
 
-func TestLoadRequiresCSEID(t *testing.T) {
-	if _, err := Load(func(string) string { return "" }); err == nil {
-		t.Fatal("accepted empty config")
-	}
-}
-
-func TestLoadDoesNotRequireAPIKey(t *testing.T) {
-	cfg, err := Load(func(name string) string {
-		if name == "GOOGLE_CSE_ID" {
-			return "cx"
-		}
-		return ""
-	})
+func TestLoadAppliesDefaultsWithoutAPIKeyOrCSE(t *testing.T) {
+	cfg, err := Load(func(string) string { return "" })
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cfg.Port != "8080" || cfg.MCPPath != "/mcp" || cfg.MaxResults != 5 || cfg.MaxParallel != 3 {
 		t.Fatalf("defaults = %+v", cfg)
 	}
-	if cfg.CSEID != "cx" {
-		t.Fatalf("cseid = %q", cfg.CSEID)
+	if cfg.Model != "gemini-2.5-flash" {
+		t.Fatalf("model = %q", cfg.Model)
+	}
+	if !stringsHasSuffix(cfg.APIBase, "/v1beta") {
+		t.Fatalf("api base = %q", cfg.APIBase)
 	}
 }
 
 func TestLoadRejectsBadMCPPath(t *testing.T) {
 	if _, err := Load(func(name string) string {
-		switch name {
-		case "GOOGLE_CSE_ID":
-			return "cx"
-		case "MCP_PATH":
+		if name == "MCP_PATH" {
 			return "mcp"
-		default:
-			return ""
 		}
+		return ""
 	}); err == nil {
 		t.Fatal("accepted relative MCP_PATH")
 	}
+}
+
+func stringsHasSuffix(s, suffix string) bool {
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
 }

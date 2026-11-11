@@ -18,7 +18,7 @@ type Request struct {
 	MaxVariants int
 }
 
-// Result is one or more targeted queries plus CSE filter hints.
+// Result is one or more targeted queries plus optional filter hints.
 type Result struct {
 	Primary string            `json:"primary"`
 	Alts    []string          `json:"alts,omitempty"`

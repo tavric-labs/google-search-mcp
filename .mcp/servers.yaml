@@ -1,7 +1,7 @@
 version: v1
 servers:
     - name: google-search
-      description: Generic token-efficient Google web search for any topic — craft queries, slim SERPs, selective page open, citation packs. Clients send X-Google-Api-Key.
+      description: Generic token-efficient Google web search via Gemini Search grounding — craft queries, slim SERPs, selective page open, citation packs. Clients send X-Gemini-Api-Key (AI Studio).
       image: registry.mcpruntime.org/org/google-search-mcp/google-search
       imageTag: latest
       route: /google-search/mcp
@@ -10,8 +10,8 @@ servers:
       port: 8080
       replicas: 1
       envVars:
-        - name: GOOGLE_CSE_ID
-          value: <platform programmable search engine cx>
+        - name: GEMINI_MODEL
+          value: gemini-2.5-flash
         - name: GOOGLE_SEARCH_MAX_RESULTS
           value: "5"
         - name: GOOGLE_SEARCH_MAX_PARALLEL
@@ -19,7 +19,7 @@ servers:
       namespace: mcp-servers
       auth:
         mode: header
-        headers: [X-Google-Api-Key]
+        headers: [X-Gemini-Api-Key]
         credentialPresence: all
         credentialGateway:
           validationPath: /auth/check
@@ -29,7 +29,7 @@ servers:
           requiredTrust: low
           sideEffect: read
         - name: google_search
-          description: Generic Custom Search for any topic; return slim hits.
+          description: Generic Google web search via Gemini grounding; return slim hits.
           requiredTrust: low
           sideEffect: read
         - name: google_multi_search
