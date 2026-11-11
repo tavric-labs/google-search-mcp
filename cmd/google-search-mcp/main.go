@@ -1,5 +1,6 @@
 // Command google-search-mcp is a token-efficient Google Custom Search MCP server:
 // craft targeted queries, search slim SERPs, open a few pages, pack citations.
+// Clients authenticate with header X-Google-Api-Key (their Google API key).
 package main
 
 import (
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -33,7 +35,7 @@ func run() error {
 		return err
 	}
 	handlers := &tools.Server{
-		CSE:          cse.New(cfg.APIKey, cfg.APIBase),
+		CSE:          cse.New(cfg.APIBase),
 		Fetch:        fetch.New(),
 		Hits:         hits.New(30 * time.Minute),
 		CSEID:        cfg.CSEID,
@@ -44,7 +46,7 @@ func run() error {
 	}
 
 	server := mcp.NewServer(&mcp.Implementation{Name: "google-search-mcp", Version: "0.1.0"}, &mcp.ServerOptions{
-		Instructions: "Generic Google web search for any topic. Craft a short targeted query first, search for slim hits, open at most 1-2 pages if needed, then pack evidence. Prefer google_craft_query before google_search. Keep result counts small.",
+		Instructions: "Generic Google web search for any topic. Send X-Google-Api-Key with a Google API key that has Custom Search API enabled. Craft a short targeted query first, search for slim hits, open at most 1-2 pages if needed, then pack evidence. Prefer google_craft_query before google_search. Keep result counts small.",
 	})
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "google_craft_query",
@@ -67,13 +69,15 @@ func run() error {
 		Description: "Build a short citation pack from selected hit_ids for the final answer.",
 	}, handlers.PackEvidence)
 
-	mcpHandler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, &mcp.StreamableHTTPOptions{JSONResponse: true})
+	mcpHandler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, &mcp.StreamableHTTPOptions{
+		Stateless: true, JSONResponse: true,
+	})
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = fmt.Fprint(w, `{"ok":true}`)
 	})
-	mux.Handle(cfg.MCPPath, mcpHandler)
+	mux.Handle("/", headerAuth(cfg.MCPPath, mcpHandler))
 
 	httpServer := &http.Server{
 		Addr: ":" + cfg.Port, Handler: mux,
@@ -88,9 +92,36 @@ func run() error {
 		defer done()
 		_ = httpServer.Shutdown(shutdown)
 	}()
-	log.Printf("google-search-mcp listening on :%s at %s", cfg.Port, cfg.MCPPath)
+	log.Printf("google-search-mcp listening on :%s at %s (header %s)", cfg.Port, cfg.MCPPath, config.APIKeyHeader)
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
 	}
 	return nil
+}
+
+func headerAuth(mcpPath string, next http.Handler) http.Handler {
+	checkPath := mcpPath + "/auth/check"
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != mcpPath && r.URL.Path != checkPath {
+			http.NotFound(w, r)
+			return
+		}
+		key := strings.TrimSpace(r.Header.Get(config.APIKeyHeader))
+		if key == "" {
+			w.Header().Set("WWW-Authenticate", config.APIKeyHeader)
+			http.Error(w, "missing "+config.APIKeyHeader, http.StatusUnauthorized)
+			return
+		}
+		if r.URL.Path == checkPath {
+			if r.Method != http.MethodGet {
+				w.Header().Set("Allow", http.MethodGet)
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			w.Header().Set("Cache-Control", "no-store")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

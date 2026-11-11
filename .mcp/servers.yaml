@@ -1,9 +1,9 @@
 version: v1
 servers:
     - name: google-search
-      description: Generic token-efficient Google web search for any topic — craft queries, slim SERPs, selective page open, citation packs.
+      description: Generic token-efficient Google web search for any topic — craft queries, slim SERPs, selective page open, citation packs. Clients send X-Google-Api-Key.
       image: registry.mcpruntime.org/org/google-search-mcp/google-search
-      imageTag: dev
+      imageTag: latest
       route: /google-search/mcp
       publicPathPrefix: google-search
       ingressHost: mcp.mcpruntime.org
@@ -11,17 +11,18 @@ servers:
       replicas: 1
       envVars:
         - name: GOOGLE_CSE_ID
-          value: <programmable search engine cx>
+          value: <platform programmable search engine cx>
         - name: GOOGLE_SEARCH_MAX_RESULTS
           value: "5"
         - name: GOOGLE_SEARCH_MAX_PARALLEL
           value: "3"
-      secretEnvVars:
-        - name: GOOGLE_API_KEY
-          secretKeyRef:
-            name: google-search-mcp-secrets
-            key: GOOGLE_API_KEY
       namespace: mcp-servers
+      auth:
+        mode: header
+        headers: [X-Google-Api-Key]
+        credentialPresence: all
+        credentialGateway:
+          validationPath: /auth/check
       tools:
         - name: google_craft_query
           description: Design targeted Google queries from any plain-language goal without calling Google.

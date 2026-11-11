@@ -17,6 +17,7 @@ import (
 // Params are the filters sent to Custom Search.
 type Params struct {
 	Query        string
+	APIKey       string
 	CSEID        string
 	Num          int
 	Start        int
@@ -31,15 +32,13 @@ type Params struct {
 
 // Client talks to the Custom Search JSON API.
 type Client struct {
-	apiKey  string
 	baseURL string
 	http    *http.Client
 }
 
-// New returns a CSE client.
-func New(apiKey, baseURL string) *Client {
+// New returns a CSE client. Callers pass the per-request API key in Params.
+func New(baseURL string) *Client {
 	return &Client{
-		apiKey:  apiKey,
 		baseURL: strings.TrimRight(baseURL, "/"),
 		http:    &http.Client{Timeout: 20 * time.Second},
 	}
@@ -49,6 +48,9 @@ func New(apiKey, baseURL string) *Client {
 func (c *Client) Search(ctx context.Context, p Params) ([]hits.Hit, error) {
 	if strings.TrimSpace(p.Query) == "" {
 		return nil, fmt.Errorf("query is required")
+	}
+	if strings.TrimSpace(p.APIKey) == "" {
+		return nil, fmt.Errorf("api key is required")
 	}
 	if p.CSEID == "" {
 		return nil, fmt.Errorf("cse id is required")
@@ -63,7 +65,7 @@ func (c *Client) Search(ctx context.Context, p Params) ([]hits.Hit, error) {
 		p.Start = 1
 	}
 	values := url.Values{}
-	values.Set("key", c.apiKey)
+	values.Set("key", p.APIKey)
 	values.Set("cx", p.CSEID)
 	values.Set("q", p.Query)
 	values.Set("num", fmt.Sprintf("%d", p.Num))

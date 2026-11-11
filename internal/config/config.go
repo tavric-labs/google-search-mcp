@@ -8,10 +8,13 @@ import (
 	"strings"
 )
 
+// APIKeyHeader is the credential header clients send with their Google API key.
+const APIKeyHeader = "X-Google-Api-Key"
+
 // Config is everything the server needs to start.
+// End users supply GOOGLE_API_KEY via APIKeyHeader; the platform owns CSEID.
 type Config struct {
 	Port, MCPPath string
-	APIKey        string
 	CSEID         string
 	APIBase       string
 	MaxResults    int
@@ -64,7 +67,6 @@ func Load(getenv func(string) string) (Config, error) {
 	config := Config{
 		Port:         value("PORT", "8080"),
 		MCPPath:      value("MCP_PATH", "/mcp"),
-		APIKey:       value("GOOGLE_API_KEY", ""),
 		CSEID:        value("GOOGLE_CSE_ID", ""),
 		APIBase:      strings.TrimRight(value("GOOGLE_CSE_API_BASE", "https://www.googleapis.com/customsearch/v1"), "/"),
 		MaxResults:   maxResults,
@@ -72,11 +74,11 @@ func Load(getenv func(string) string) (Config, error) {
 		MaxOpenChars: maxOpen,
 		MaxPackChars: maxPack,
 	}
-	if config.APIKey == "" {
-		return Config{}, errors.New("GOOGLE_API_KEY is required")
-	}
 	if config.CSEID == "" {
-		return Config{}, errors.New("GOOGLE_CSE_ID is required")
+		return Config{}, errors.New("GOOGLE_CSE_ID is required (platform Programmable Search Engine cx)")
+	}
+	if !strings.HasPrefix(config.MCPPath, "/") || strings.ContainsAny(config.MCPPath, "?#") || strings.HasSuffix(config.MCPPath, "/") {
+		return Config{}, errors.New("MCP_PATH must be an absolute path without trailing slash")
 	}
 	return config, nil
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/tavric-labs/google-search-mcp/internal/config"
 	"github.com/tavric-labs/google-search-mcp/internal/craft"
 	"github.com/tavric-labs/google-search-mcp/internal/cse"
 	"github.com/tavric-labs/google-search-mcp/internal/evidence"
@@ -113,25 +114,33 @@ func (s *Server) CraftQuery(_ context.Context, _ *mcp.CallToolRequest, args Craf
 }
 
 // Search runs one Custom Search request.
-func (s *Server) Search(ctx context.Context, _ *mcp.CallToolRequest, args SearchArgs) (*mcp.CallToolResult, any, error) {
+func (s *Server) Search(ctx context.Context, request *mcp.CallToolRequest, args SearchArgs) (*mcp.CallToolResult, any, error) {
+	apiKey, failure := apiKeyFrom(request)
+	if failure != nil {
+		return failure, nil, nil
+	}
 	num := args.Num
 	if num <= 0 {
 		num = s.MaxResults
 	}
 	found, err := s.CSE.Search(ctx, cse.Params{
-		Query: args.Query, CSEID: s.CSEID, Num: num, Start: args.Start, Site: args.Site,
+		Query: args.Query, APIKey: apiKey, CSEID: s.CSEID, Num: num, Start: args.Start, Site: args.Site,
 		FileType: args.FileType, DateRestrict: args.DateRestrict, ExactTerms: args.ExactTerms,
 		ExcludeTerms: args.ExcludeTerms, GL: args.GL, HL: args.HL, Sort: args.Sort,
 	})
 	if err != nil {
-		return textResult("Google search failed. Check the query and API credentials.", true), nil, nil
+		return textResult("Google search failed. Check the query and X-Google-Api-Key.", true), nil, nil
 	}
 	stored := s.Hits.Put(found)
 	return textResult(formatHits(stored), false), nil, nil
 }
 
 // MultiSearch runs a few queries in parallel and dedupes by URL.
-func (s *Server) MultiSearch(ctx context.Context, _ *mcp.CallToolRequest, args MultiArgs) (*mcp.CallToolResult, any, error) {
+func (s *Server) MultiSearch(ctx context.Context, request *mcp.CallToolRequest, args MultiArgs) (*mcp.CallToolResult, any, error) {
+	apiKey, failure := apiKeyFrom(request)
+	if failure != nil {
+		return failure, nil, nil
+	}
 	queries := cleanQueries(args.Queries, s.MaxParallel)
 	if len(queries) == 0 {
 		return textResult("Provide 1 to 3 short queries.", true), nil, nil
@@ -149,7 +158,7 @@ func (s *Server) MultiSearch(ctx context.Context, _ *mcp.CallToolRequest, args M
 		q := q
 		go func() {
 			h, err := s.CSE.Search(ctx, cse.Params{
-				Query: q, CSEID: s.CSEID, Num: num, Site: args.Site, FileType: args.FileType,
+				Query: q, APIKey: apiKey, CSEID: s.CSEID, Num: num, Site: args.Site, FileType: args.FileType,
 				DateRestrict: args.DateRestrict, ExcludeTerms: args.ExcludeTerms,
 			})
 			ch <- outcome{hits: h, err: err}
@@ -173,7 +182,7 @@ func (s *Server) MultiSearch(ctx context.Context, _ *mcp.CallToolRequest, args M
 		}
 	}
 	if len(merged) == 0 && firstErr != nil {
-		return textResult("Google multi-search failed. Check the queries and API credentials.", true), nil, nil
+		return textResult("Google multi-search failed. Check the queries and X-Google-Api-Key.", true), nil, nil
 	}
 	stored := s.Hits.Put(merged)
 	return textResult(formatHits(stored), false), nil, nil
@@ -220,6 +229,15 @@ func (s *Server) PackEvidence(_ context.Context, _ *mcp.CallToolRequest, args Pa
 	}
 	pack := evidence.Pack(args.Question, evidence.FromHits(selected, extracts), s.MaxPackChars)
 	return textResult(pack, false), nil, nil
+}
+
+func apiKeyFrom(request *mcp.CallToolRequest) (string, *mcp.CallToolResult) {
+	if request != nil && request.Extra != nil && request.Extra.Header != nil {
+		if key := strings.TrimSpace(request.Extra.Header.Get(config.APIKeyHeader)); key != "" {
+			return key, nil
+		}
+	}
+	return "", textResult("Missing "+config.APIKeyHeader+". Create a Google API key with Custom Search API enabled and send it in that header.", true)
 }
 
 func formatHits(list []hits.Hit) string {

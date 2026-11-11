@@ -2,20 +2,24 @@ package tools
 
 import (
 	"context"
+	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/tavric-labs/google-search-mcp/internal/config"
 	"github.com/tavric-labs/google-search-mcp/internal/cse"
 	"github.com/tavric-labs/google-search-mcp/internal/hits"
 )
 
 type fakeSearch struct {
-	hits []hits.Hit
+	hits    []hits.Hit
+	lastKey string
 }
 
-func (f *fakeSearch) Search(_ context.Context, _ cse.Params) ([]hits.Hit, error) {
+func (f *fakeSearch) Search(_ context.Context, p cse.Params) ([]hits.Hit, error) {
+	f.lastKey = p.APIKey
 	return append([]hits.Hit{}, f.hits...), nil
 }
 
@@ -37,6 +41,10 @@ func textOf(t *testing.T, result *mcp.CallToolResult) string {
 	return content.Text
 }
 
+func withAPIKey(key string) *mcp.CallToolRequest {
+	return &mcp.CallToolRequest{Extra: &mcp.RequestExtra{Header: http.Header{config.APIKeyHeader: {key}}}}
+}
+
 func TestCraftThenSearchFlow(t *testing.T) {
 	store := hits.New(0)
 	search := &fakeSearch{hits: []hits.Hit{{Title: "A", URL: "https://example.com/a", Snippet: "enough snippet text for a strong hit here"}}}
@@ -50,13 +58,27 @@ func TestCraftThenSearchFlow(t *testing.T) {
 		t.Fatalf("craft text = %q", textOf(t, crafted))
 	}
 
-	result, _, err := server.Search(context.Background(), nil, SearchArgs{Query: "MCP gateways"})
+	result, _, err := server.Search(context.Background(), withAPIKey("user-key"), SearchArgs{Query: "MCP gateways"})
 	if err != nil || result.IsError {
 		t.Fatalf("search: %+v err=%v", result, err)
+	}
+	if search.lastKey != "user-key" {
+		t.Fatalf("api key = %q", search.lastKey)
 	}
 	body := textOf(t, result)
 	if !strings.Contains(body, "hit_id=h_") || !strings.Contains(body, "https://example.com/a") {
 		t.Fatalf("search text = %q", body)
+	}
+}
+
+func TestSearchRequiresAPIKeyHeader(t *testing.T) {
+	server := &Server{CSE: &fakeSearch{}, Hits: hits.New(0), CSEID: "cx", MaxResults: 5}
+	result, _, err := server.Search(context.Background(), nil, SearchArgs{Query: "q"})
+	if err != nil || !result.IsError {
+		t.Fatalf("expected missing-key error, got %+v err=%v", result, err)
+	}
+	if !strings.Contains(textOf(t, result), config.APIKeyHeader) {
+		t.Fatalf("text = %q", textOf(t, result))
 	}
 }
 
