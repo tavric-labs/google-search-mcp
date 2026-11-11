@@ -1,6 +1,6 @@
 // Command google-search-mcp is a token-efficient Google web search MCP server
-// backed by Gemini Google Search grounding. Clients send X-Gemini-Api-Key
-// (a Gemini AI Studio API key). There is no Custom Search / CSE id.
+// backed by Gemini Google Search grounding. Callers may send X-Gemini-Api-Key,
+// or a public deploy can set GEMINI_API_KEY on the pod (no client login).
 package main
 
 import (
@@ -35,17 +35,18 @@ func run() error {
 		return err
 	}
 	handlers := &tools.Server{
-		Searcher:     gemini.New(cfg.APIBase, cfg.Model),
-		Fetch:        fetch.New(),
-		Hits:         hits.New(30 * time.Minute),
-		MaxResults:   cfg.MaxResults,
-		MaxParallel:  cfg.MaxParallel,
-		MaxOpenChars: cfg.MaxOpenChars,
-		MaxPackChars: cfg.MaxPackChars,
+		Searcher:       gemini.New(cfg.APIBase, cfg.Model),
+		Fetch:          fetch.New(),
+		Hits:           hits.New(30 * time.Minute),
+		PlatformAPIKey: cfg.PlatformAPIKey,
+		MaxResults:     cfg.MaxResults,
+		MaxParallel:    cfg.MaxParallel,
+		MaxOpenChars:   cfg.MaxOpenChars,
+		MaxPackChars:   cfg.MaxPackChars,
 	}
 
 	server := mcp.NewServer(&mcp.Implementation{Name: "google-search-mcp", Version: "0.2.0"}, &mcp.ServerOptions{
-		Instructions: "Generic Google web search for any topic via Gemini Search grounding. Send X-Gemini-Api-Key with a Gemini AI Studio API key. Craft a short targeted query first, search for slim hits, open at most 1-2 pages if needed, then pack evidence. Prefer google_craft_query before google_search. Keep result counts small.",
+		Instructions: "Generic Google web search for any topic via Gemini Search grounding. Prefer google_craft_query before google_search. Keep result counts small. Open at most 1-2 pages, then pack evidence.",
 	})
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "google_craft_query",
@@ -76,7 +77,7 @@ func run() error {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = fmt.Fprint(w, `{"ok":true}`)
 	})
-	mux.Handle("/", headerAuth(cfg.MCPPath, mcpHandler))
+	mux.Handle("/", apiKeyGate(cfg.MCPPath, cfg.PlatformAPIKey, mcpHandler))
 
 	httpServer := &http.Server{
 		Addr: ":" + cfg.Port, Handler: mux,
@@ -91,14 +92,14 @@ func run() error {
 		defer done()
 		_ = httpServer.Shutdown(shutdown)
 	}()
-	log.Printf("google-search-mcp listening on :%s at %s (header %s, model %s)", cfg.Port, cfg.MCPPath, config.APIKeyHeader, cfg.Model)
+	log.Printf("google-search-mcp listening on :%s at %s (model %s, platform_key=%t)", cfg.Port, cfg.MCPPath, cfg.Model, cfg.PlatformAPIKey != "")
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return err
 	}
 	return nil
 }
 
-func headerAuth(mcpPath string, next http.Handler) http.Handler {
+func apiKeyGate(mcpPath, platformKey string, next http.Handler) http.Handler {
 	checkPath := mcpPath + "/auth/check"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != mcpPath && r.URL.Path != checkPath {
@@ -107,9 +108,15 @@ func headerAuth(mcpPath string, next http.Handler) http.Handler {
 		}
 		key := strings.TrimSpace(r.Header.Get(config.APIKeyHeader))
 		if key == "" {
+			key = strings.TrimSpace(platformKey)
+		}
+		if key == "" {
 			w.Header().Set("WWW-Authenticate", config.APIKeyHeader)
-			http.Error(w, "missing "+config.APIKeyHeader, http.StatusUnauthorized)
+			http.Error(w, "missing Gemini API key", http.StatusUnauthorized)
 			return
+		}
+		if r.Header.Get(config.APIKeyHeader) == "" && platformKey != "" {
+			r.Header.Set(config.APIKeyHeader, platformKey)
 		}
 		if r.URL.Path == checkPath {
 			if r.Method != http.MethodGet {

@@ -1,14 +1,15 @@
 version: v1
 servers:
     - name: google-search
-      description: Generic token-efficient Google web search via Gemini Search grounding — craft queries, slim SERPs, selective page open, citation packs. Clients send X-Gemini-Api-Key (AI Studio).
-      image: registry.mcpruntime.org/org/google-search-mcp/google-search
-      imageTag: latest
+      description: Public Google web search via Gemini Search grounding — craft queries, slim SERPs, selective page open, citation packs. No client login; platform holds the Gemini key. Gateway audit records tool use.
+      image: registry.mcpruntime.org/public/google-search-mcp
+      imageTag: v0.2.0
       route: /google-search/mcp
       publicPathPrefix: google-search
       ingressHost: mcp.mcpruntime.org
       port: 8080
       replicas: 1
+      scope: public
       envVars:
         - name: GEMINI_MODEL
           value: gemini-2.5-flash
@@ -16,13 +17,14 @@ servers:
           value: "5"
         - name: GOOGLE_SEARCH_MAX_PARALLEL
           value: "3"
-      namespace: mcp-servers
+      secretEnvVars:
+        - name: GEMINI_API_KEY
+          secretKeyRef:
+            name: google-search-mcp-secrets
+            key: GEMINI_API_KEY
+      namespace: mcp-servers-public
       auth:
-        mode: header
-        headers: [X-Gemini-Api-Key]
-        credentialPresence: all
-        credentialGateway:
-          validationPath: /auth/check
+        mode: none
       tools:
         - name: google_craft_query
           description: Design targeted Google queries from any plain-language goal without calling Google.
@@ -45,5 +47,9 @@ servers:
           requiredTrust: low
           sideEffect: read
       policy:
-        mode: allow-list
-        defaultDecision: deny
+        mode: observe
+        defaultDecision: allow
+        enforceOn: call_tool
+        policyVersion: v1
+      gateway:
+        enabled: true

@@ -28,14 +28,15 @@ type Fetcher interface {
 
 // Server holds tool dependencies.
 type Server struct {
-	Searcher     Searcher
-	Fetch        Fetcher
-	Hits         *hits.Store
-	MaxResults   int
-	MaxParallel  int
-	MaxOpenChars int
-	MaxPackChars int
-	extracts     sync.Map
+	Searcher       Searcher
+	Fetch          Fetcher
+	Hits           *hits.Store
+	PlatformAPIKey string
+	MaxResults     int
+	MaxParallel    int
+	MaxOpenChars   int
+	MaxPackChars   int
+	extracts       sync.Map
 }
 
 // CraftArgs are inputs for google_craft_query.
@@ -113,7 +114,7 @@ func (s *Server) CraftQuery(_ context.Context, _ *mcp.CallToolRequest, args Craf
 
 // Search runs one grounded Google Search request.
 func (s *Server) Search(ctx context.Context, request *mcp.CallToolRequest, args SearchArgs) (*mcp.CallToolResult, any, error) {
-	apiKey, failure := apiKeyFrom(request)
+	apiKey, failure := s.apiKeyFrom(request)
 	if failure != nil {
 		return failure, nil, nil
 	}
@@ -135,7 +136,7 @@ func (s *Server) Search(ctx context.Context, request *mcp.CallToolRequest, args 
 
 // MultiSearch runs a few queries in parallel and dedupes by URL.
 func (s *Server) MultiSearch(ctx context.Context, request *mcp.CallToolRequest, args MultiArgs) (*mcp.CallToolResult, any, error) {
-	apiKey, failure := apiKeyFrom(request)
+	apiKey, failure := s.apiKeyFrom(request)
 	if failure != nil {
 		return failure, nil, nil
 	}
@@ -229,13 +230,16 @@ func (s *Server) PackEvidence(_ context.Context, _ *mcp.CallToolRequest, args Pa
 	return textResult(pack, false), nil, nil
 }
 
-func apiKeyFrom(request *mcp.CallToolRequest) (string, *mcp.CallToolResult) {
+func (s *Server) apiKeyFrom(request *mcp.CallToolRequest) (string, *mcp.CallToolResult) {
 	if request != nil && request.Extra != nil && request.Extra.Header != nil {
 		if key := strings.TrimSpace(request.Extra.Header.Get(config.APIKeyHeader)); key != "" {
 			return key, nil
 		}
 	}
-	return "", textResult("Missing "+config.APIKeyHeader+". Create a Gemini API key in Google AI Studio and send it in that header.", true)
+	if key := strings.TrimSpace(s.PlatformAPIKey); key != "" {
+		return key, nil
+	}
+	return "", textResult("Missing Gemini API key. Send "+config.APIKeyHeader+", or deploy with platform GEMINI_API_KEY.", true)
 }
 
 func formatHits(list []hits.Hit) string {

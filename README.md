@@ -2,7 +2,8 @@
 
 A **generic**, token-efficient MCP server for searching **anything** on the web via
 **Gemini Google Search grounding** (Google AI Studio). No Custom Search Engine
-(`cx`) and no `GOOGLE_CSE_ID` — users only provide a Gemini API key.
+(`cx`) and no `GOOGLE_CSE_ID`. Public Runtime deploys can run with no client login
+(platform-held key + gateway audit); callers may also send their own key.
 
 Agents are steered to use **short targeted queries**, read **slim SERPs**, open
 **few pages**, and answer from a **small citation pack** (craft → search →
@@ -20,14 +21,15 @@ selective open → pack → stop).
 
 ### Use the key with this MCP
 
-Send it on every request:
+- **Public Runtime (default in `.mcp/servers.yaml`):** `auth.mode: none`,
+  `policy.mode: observe`, `gateway.enabled: true`. The pod Secret supplies
+  `GEMINI_API_KEY`. Clients need no login; gateway audit records tool use.
+- **Bring-your-own key:** send a header (overrides the platform key when both
+  are present):
 
 ```http
 X-Gemini-Api-Key: <gemini-ai-studio-api-key>
 ```
-
-On MCP Runtime, `.mcp/servers.yaml` sets `auth.mode: header` with that header
-name so connect configs and the credential gateway collect it.
 
 Local smoke (never commit the value):
 
@@ -36,9 +38,6 @@ Local smoke (never commit the value):
 echo 'GEMINI_API_KEY=...' > .env
 chmod 600 .env
 ```
-
-Clients still use the **header** above; the server does not read a process-wide
-key for user traffic.
 
 ## Free quota (Search grounding)
 

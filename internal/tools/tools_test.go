@@ -77,8 +77,20 @@ func TestSearchRequiresAPIKeyHeader(t *testing.T) {
 	if err != nil || !result.IsError {
 		t.Fatalf("expected missing-key error, got %+v err=%v", result, err)
 	}
-	if !strings.Contains(textOf(t, result), config.APIKeyHeader) {
+	if !strings.Contains(textOf(t, result), "Gemini API key") {
 		t.Fatalf("text = %q", textOf(t, result))
+	}
+}
+
+func TestSearchUsesPlatformAPIKey(t *testing.T) {
+	search := &fakeSearch{hits: []hits.Hit{{Title: "A", URL: "https://example.com/a", Snippet: "snippet text long enough here"}}}
+	server := &Server{Searcher: search, Hits: hits.New(0), PlatformAPIKey: "platform-key", MaxResults: 5}
+	result, _, err := server.Search(context.Background(), nil, SearchArgs{Query: "q"})
+	if err != nil || result.IsError {
+		t.Fatalf("search: %+v err=%v", result, err)
+	}
+	if search.lastKey != "platform-key" {
+		t.Fatalf("api key = %q", search.lastKey)
 	}
 }
 

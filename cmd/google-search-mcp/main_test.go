@@ -8,12 +8,12 @@ import (
 	"github.com/tavric-labs/google-search-mcp/internal/config"
 )
 
-func TestHeaderAuthRequiresKey(t *testing.T) {
+func TestAPIKeyGateRequiresKeyWithoutPlatform(t *testing.T) {
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	handler := headerAuth("/mcp", next)
+	handler := apiKeyGate("/mcp", "", next)
 
 	req := httptest.NewRequest(http.MethodPost, "/mcp", nil)
 	rec := httptest.NewRecorder()
@@ -23,13 +23,32 @@ func TestHeaderAuthRequiresKey(t *testing.T) {
 	}
 }
 
-func TestHeaderAuthCheckAndMCP(t *testing.T) {
+func TestAPIKeyGateAllowsPlatformKeyWithoutHeader(t *testing.T) {
+	called := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		if r.Header.Get(config.APIKeyHeader) != "platform-key" {
+			t.Errorf("injected header = %q", r.Header.Get(config.APIKeyHeader))
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	handler := apiKeyGate("/mcp", "platform-key", next)
+
+	req := httptest.NewRequest(http.MethodPost, "/mcp", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !called {
+		t.Fatalf("status=%d called=%v", rec.Code, called)
+	}
+}
+
+func TestAPIKeyGateCheckAndHeader(t *testing.T) {
 	called := false
 	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := headerAuth("/mcp", next)
+	handler := apiKeyGate("/mcp", "", next)
 
 	check := httptest.NewRequest(http.MethodGet, "/mcp/auth/check", nil)
 	check.Header.Set(config.APIKeyHeader, "key")

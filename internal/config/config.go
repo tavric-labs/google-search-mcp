@@ -8,19 +8,21 @@ import (
 	"strings"
 )
 
-// APIKeyHeader is the credential header clients send with their Gemini API key.
+// APIKeyHeader is the optional credential header for a caller's Gemini API key.
+// When unset, the server may use the platform GEMINI_API_KEY env (public deploy).
 const APIKeyHeader = "X-Gemini-Api-Key"
 
 // Config is everything the server needs to start.
-// End users supply a Gemini AI Studio API key via APIKeyHeader.
 type Config struct {
 	Port, MCPPath string
 	APIBase       string
 	Model         string
-	MaxResults    int
-	MaxParallel   int
-	MaxOpenChars  int
-	MaxPackChars  int
+	// PlatformAPIKey is an optional server-held Gemini key (public no-login deploys).
+	PlatformAPIKey string
+	MaxResults     int
+	MaxParallel    int
+	MaxOpenChars   int
+	MaxPackChars   int
 }
 
 // Load reads and validates the configuration.
@@ -65,14 +67,15 @@ func Load(getenv func(string) string) (Config, error) {
 		return Config{}, err
 	}
 	config := Config{
-		Port:         value("PORT", "8080"),
-		MCPPath:      value("MCP_PATH", "/mcp"),
-		APIBase:      strings.TrimRight(value("GEMINI_API_BASE", "https://generativelanguage.googleapis.com/v1beta"), "/"),
-		Model:        value("GEMINI_MODEL", "gemini-2.5-flash"),
-		MaxResults:   maxResults,
-		MaxParallel:  maxParallel,
-		MaxOpenChars: maxOpen,
-		MaxPackChars: maxPack,
+		Port:           value("PORT", "8080"),
+		MCPPath:        value("MCP_PATH", "/mcp"),
+		APIBase:        strings.TrimRight(value("GEMINI_API_BASE", "https://generativelanguage.googleapis.com/v1beta"), "/"),
+		Model:          value("GEMINI_MODEL", "gemini-2.5-flash"),
+		PlatformAPIKey: value("GEMINI_API_KEY", ""),
+		MaxResults:     maxResults,
+		MaxParallel:    maxParallel,
+		MaxOpenChars:   maxOpen,
+		MaxPackChars:   maxPack,
 	}
 	if !strings.HasPrefix(config.MCPPath, "/") || strings.ContainsAny(config.MCPPath, "?#") || strings.HasSuffix(config.MCPPath, "/") {
 		return Config{}, errors.New("MCP_PATH must be an absolute path without trailing slash")
