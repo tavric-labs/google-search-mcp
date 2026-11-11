@@ -1,7 +1,7 @@
 version: v1
 servers:
     - name: google-search
-      description: Token-efficient Google Custom Search with query craft, slim SERPs, selective page open, and citation packs.
+      description: Generic token-efficient Google web search for any topic — craft queries, slim SERPs, selective page open, citation packs.
       image: registry.mcpruntime.org/org/google-search-mcp/google-search
       imageTag: dev
       route: /google-search/mcp
@@ -12,8 +12,6 @@ servers:
       envVars:
         - name: GOOGLE_CSE_ID
           value: <programmable search engine cx>
-        - name: GOOGLE_CSE_PAPERS_ID
-          value: <optional papers-only cx>
         - name: GOOGLE_SEARCH_MAX_RESULTS
           value: "5"
         - name: GOOGLE_SEARCH_MAX_PARALLEL
@@ -26,19 +24,15 @@ servers:
       namespace: mcp-servers
       tools:
         - name: google_craft_query
-          description: Design targeted Google queries from a plain-language goal without calling Google.
+          description: Design targeted Google queries from any plain-language goal without calling Google.
           requiredTrust: low
           sideEffect: read
         - name: google_search
-          description: Run one Custom Search and return slim hits.
+          description: Generic Custom Search for any topic; return slim hits.
           requiredTrust: low
           sideEffect: read
         - name: google_multi_search
           description: Run up to three queries in parallel and dedupe hits.
-          requiredTrust: low
-          sideEffect: read
-        - name: google_search_papers
-          description: Search with a papers/pdf bias.
           requiredTrust: low
           sideEffect: read
         - name: google_open

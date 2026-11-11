@@ -37,7 +37,6 @@ func run() error {
 		Fetch:        fetch.New(),
 		Hits:         hits.New(30 * time.Minute),
 		CSEID:        cfg.CSEID,
-		PapersCSEID:  cfg.PapersCSEID,
 		MaxResults:   cfg.MaxResults,
 		MaxParallel:  cfg.MaxParallel,
 		MaxOpenChars: cfg.MaxOpenChars,
@@ -45,24 +44,20 @@ func run() error {
 	}
 
 	server := mcp.NewServer(&mcp.Implementation{Name: "google-search-mcp", Version: "0.1.0"}, &mcp.ServerOptions{
-		Instructions: "Token-efficient Google search: craft a targeted query first, search for slim hits, open at most 1-2 pages, then pack evidence with citations. Prefer google_craft_query before google_search. Default to few results.",
+		Instructions: "Generic Google web search for any topic. Craft a short targeted query first, search for slim hits, open at most 1-2 pages if needed, then pack evidence. Prefer google_craft_query before google_search. Keep result counts small.",
 	})
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "google_craft_query",
-		Description: "Design 1-3 short Google-ready queries with operators from a plain-language goal. Does not call Google. Use before searching.",
+		Description: "Design 1-3 short Google-ready queries from any plain-language goal (news, products, docs, how-tos, people, places, etc.). Does not call Google.",
 	}, handlers.CraftQuery)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "google_search",
-		Description: "Run one Google Custom Search and return slim hits (title, url, snippet, hit_id). Prefer a crafted query. Default few results.",
+		Description: "Generic Google Custom Search for anything. Returns slim hits (title, url, snippet, hit_id). Prefer a crafted query. Default few results.",
 	}, handlers.Search)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "google_multi_search",
-		Description: "Run up to 3 short queries in parallel, merge and dedupe hits. For multi-hop questions.",
+		Description: "Run up to 3 short queries in parallel for any multi-part question; merge and dedupe hits.",
 	}, handlers.MultiSearch)
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "google_search_papers",
-		Description: "Search with a papers bias (pdf / arxiv or papers CSE). Returns slim hits.",
-	}, handlers.SearchPapers)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "google_open",
 		Description: "Fetch one prior hit (or https URL) and return a short text extract under a char budget. Use sparingly.",

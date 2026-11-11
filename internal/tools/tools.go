@@ -31,7 +31,6 @@ type Server struct {
 	Fetch        Fetcher
 	Hits         *hits.Store
 	CSEID        string
-	PapersCSEID  string
 	MaxResults   int
 	MaxParallel  int
 	MaxOpenChars int
@@ -73,12 +72,6 @@ type MultiArgs struct {
 	FileType     string   `json:"filetype,omitempty"`
 	DateRestrict string   `json:"date_restrict,omitempty"`
 	ExcludeTerms string   `json:"exclude_terms,omitempty"`
-}
-
-// PapersArgs are inputs for google_search_papers.
-type PapersArgs struct {
-	Query string `json:"query" jsonschema:"research topic or paper keywords"`
-	Num   int    `json:"num,omitempty"`
 }
 
 // OpenArgs are inputs for google_open.
@@ -183,35 +176,6 @@ func (s *Server) MultiSearch(ctx context.Context, _ *mcp.CallToolRequest, args M
 		return textResult("Google multi-search failed. Check the queries and API credentials.", true), nil, nil
 	}
 	stored := s.Hits.Put(merged)
-	return textResult(formatHits(stored), false), nil, nil
-}
-
-// SearchPapers searches with a papers-oriented CSE and pdf bias.
-func (s *Server) SearchPapers(ctx context.Context, _ *mcp.CallToolRequest, args PapersArgs) (*mcp.CallToolResult, any, error) {
-	cx := s.PapersCSEID
-	if cx == "" {
-		cx = s.CSEID
-	}
-	q := strings.TrimSpace(args.Query)
-	if q == "" {
-		return textResult("query is required", true), nil, nil
-	}
-	if !strings.Contains(strings.ToLower(q), "filetype:pdf") {
-		q = q + " filetype:pdf"
-	}
-	num := args.Num
-	if num <= 0 {
-		num = s.MaxResults
-	}
-	params := cse.Params{Query: q, CSEID: cx, Num: num, FileType: "pdf", DateRestrict: "y5"}
-	if s.PapersCSEID == "" {
-		params.Site = "arxiv.org"
-	}
-	found, err := s.CSE.Search(ctx, params)
-	if err != nil {
-		return textResult("Google papers search failed. Check the query and API credentials.", true), nil, nil
-	}
-	stored := s.Hits.Put(found)
 	return textResult(formatHits(stored), false), nil, nil
 }
 

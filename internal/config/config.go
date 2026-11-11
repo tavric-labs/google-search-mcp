@@ -13,7 +13,6 @@ type Config struct {
 	Port, MCPPath string
 	APIKey        string
 	CSEID         string
-	PapersCSEID   string
 	APIBase       string
 	MaxResults    int
 	MaxParallel   int
@@ -67,7 +66,6 @@ func Load(getenv func(string) string) (Config, error) {
 		MCPPath:      value("MCP_PATH", "/mcp"),
 		APIKey:       value("GOOGLE_API_KEY", ""),
 		CSEID:        value("GOOGLE_CSE_ID", ""),
-		PapersCSEID:  value("GOOGLE_CSE_PAPERS_ID", ""),
 		APIBase:      strings.TrimRight(value("GOOGLE_CSE_API_BASE", "https://www.googleapis.com/customsearch/v1"), "/"),
 		MaxResults:   maxResults,
 		MaxParallel:  maxParallel,
