@@ -2,69 +2,197 @@
 
 A **generic**, token-efficient MCP server for searching **anything** on the web via
 **Gemini Google Search grounding** (Google AI Studio). No Custom Search Engine
-(`cx`) and no `GOOGLE_CSE_ID`. Public Runtime deploys can run with no client login
-(platform-held key + gateway audit); callers may also send their own key.
+(`cx`) and no `GOOGLE_CSE_ID`.
 
-Agents are steered to use **short targeted queries**, read **slim SERPs**, open
-**few pages**, and answer from a **small citation pack** (craft → search →
-selective open → pack → stop).
+Public Runtime URL:
+
+```text
+https://mcp.mcpruntime.org/google-search/mcp
+```
+
+No platform login / OAuth. Clients authenticate with header **`X-Gemini-Api-Key`**
+(your Gemini AI Studio key). The gateway is enabled and **audits tool calls** for
+usage metrics.
+
+Agents are steered to **craft → search → open 0–2 pages → pack → stop**.
+
+## Install in your client
+
+Grab a key first: [Google AI Studio → API keys](https://aistudio.google.com/apikey).
+Export it locally (never commit it):
+
+```bash
+export GEMINI_API_KEY='...'
+```
+
+Then use a one-click install where supported, or paste the JSON / TOML below.
+Install links never embed the secret — they read `GEMINI_API_KEY` from the
+environment (or you fill the header after install).
+
+[![Install in Cursor](https://img.shields.io/badge/Cursor-Install-000000?style=for-the-badge&logo=cursor&logoColor=white)](cursor://anysphere.cursor-deeplink/mcp/install?name=google-search&config=eyJ1cmwiOiJodHRwczovL21jcC5tY3BydW50aW1lLm9yZy9nb29nbGUtc2VhcmNoL21jcCIsImhlYWRlcnMiOnsiWC1HZW1pbmktQXBpLUtleSI6IiR7ZW52OkdFTUlOSV9BUElfS0VZfSJ9fQ==)
+[![Install in VS Code](https://img.shields.io/badge/VS%20Code-Install-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=google-search&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.mcpruntime.org%2Fgoogle-search%2Fmcp%22%7D)
+[![Install in VS Code Insiders](https://img.shields.io/badge/VS%20Code%20Insiders-Install-68217A?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=google-search&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.mcpruntime.org%2Fgoogle-search%2Fmcp%22%7D)
+[![Add to Claude](https://img.shields.io/badge/Claude-Add%20connector-CC785C?style=for-the-badge&logo=anthropic&logoColor=white)](https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Google%20Search&connectorUrl=https%3A%2F%2Fmcp.mcpruntime.org%2Fgoogle-search%2Fmcp)
+
+After VS Code / Claude install, add header `X-Gemini-Api-Key` in the client
+settings (those install links only carry the URL).
+
+### Cursor (`~/.cursor/mcp.json`)
+
+```json
+{
+  "mcpServers": {
+    "google-search": {
+      "url": "https://mcp.mcpruntime.org/google-search/mcp",
+      "headers": {
+        "X-Gemini-Api-Key": "${env:GEMINI_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+### VS Code (user `mcp.json` or `.vscode/mcp.json`)
+
+```json
+{
+  "inputs": [
+    {
+      "id": "gemini-api-key",
+      "type": "promptString",
+      "password": true,
+      "description": "Gemini AI Studio API key"
+    }
+  ],
+  "servers": {
+    "google-search": {
+      "type": "http",
+      "url": "https://mcp.mcpruntime.org/google-search/mcp",
+      "headers": {
+        "X-Gemini-Api-Key": "${input:gemini-api-key}"
+      }
+    }
+  }
+}
+```
+
+Or from a terminal:
+
+```bash
+code --add-mcp '{"name":"google-search","type":"http","url":"https://mcp.mcpruntime.org/google-search/mcp","headers":{"X-Gemini-Api-Key":"${input:gemini-api-key}"}}'
+```
+
+### Claude Code
+
+```bash
+claude mcp add --transport http google-search \
+  https://mcp.mcpruntime.org/google-search/mcp \
+  --header "X-Gemini-Api-Key: ${GEMINI_API_KEY}"
+```
+
+### Claude.ai (custom connector)
+
+Use **Add to Claude** above, or **Customize → Connectors → Add custom connector**
+with URL `https://mcp.mcpruntime.org/google-search/mcp`. Claude.ai custom
+connectors are OAuth-oriented; if the UI cannot attach a custom header, use
+Claude Code / Cursor / VS Code with the JSON header instead.
+
+### Codex (`~/.codex/config.toml`)
+
+```toml
+[mcp_servers.google-search]
+url = "https://mcp.mcpruntime.org/google-search/mcp"
+
+[mcp_servers.google-search.env_http_headers]
+X-Gemini-Api-Key = "GEMINI_API_KEY"
+```
+
+`GEMINI_API_KEY` is the **name** of the environment variable (not the secret).
+
+```bash
+codex mcp add google-search --url https://mcp.mcpruntime.org/google-search/mcp
+# then add the env_http_headers block above (CLI has no --header for custom names yet)
+```
+
+### OpenAI / ChatGPT
+
+In ChatGPT, add a custom MCP / connector with URL
+`https://mcp.mcpruntime.org/google-search/mcp` if your workspace supports remote
+MCP with custom headers. If the product only supports OAuth connectors, use
+Cursor, VS Code, Claude Code, or Codex with the header config above.
+
+### Windsurf
+
+`~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "google-search": {
+      "serverUrl": "https://mcp.mcpruntime.org/google-search/mcp",
+      "headers": {
+        "X-Gemini-Api-Key": "${env:GEMINI_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+### Gemini CLI
+
+`~/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "google-search": {
+      "httpUrl": "https://mcp.mcpruntime.org/google-search/mcp",
+      "headers": {
+        "X-Gemini-Api-Key": "${GEMINI_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+### MCP Runtime console
+
+On [platform.mcpruntime.org](https://platform.mcpruntime.org), open the public
+**google-search** server → **Install in your client** for Cursor, Codex, Claude
+Code, and VS Code (when signed in). For this header-mode server, still set
+`X-Gemini-Api-Key` in the generated client config.
 
 ## Get a Gemini API key
 
 1. Open [Google AI Studio → API keys](https://aistudio.google.com/apikey).
 2. Sign in with the Google account that will own the quota.
 3. Click **Create API key** (create or pick a Google Cloud project when asked).
-4. Copy the key once. Store it in a password manager or a local gitignored `.env`.
+4. Copy the key once. Store it in a password manager or `export GEMINI_API_KEY=...`.
    Do **not** paste keys into chat, issues, PRs, or git.
-5. Optional: in AI Studio open **Usage / rate limits** for that project to see
-   your live RPM / TPM / RPD caps.
+5. Optional: check **Usage / rate limits** in AI Studio for live RPM / TPM / RPD.
 
-### Use the key with this MCP
-
-- **Public Runtime (default in `.mcp/servers.yaml`):** `auth.mode: none`,
-  `policy.mode: observe`, `gateway.enabled: true`. The pod Secret supplies
-  `GEMINI_API_KEY`. Clients need no login; gateway audit records tool use.
-- **Bring-your-own key:** send a header (overrides the platform key when both
-  are present):
-
-```http
-X-Gemini-Api-Key: <gemini-ai-studio-api-key>
-```
-
-Local smoke (never commit the value):
+Local smoke env file (gitignored):
 
 ```bash
-# gitignored
 echo 'GEMINI_API_KEY=...' > .env
 chmod 600 .env
 ```
 
-## Public Runtime URL
+## How auth works on the public deploy
 
-Deployed on MCP Runtime public scope (no platform login):
+| Piece | Value |
+|---|---|
+| Scope | `public` (`mcp-servers-public`) |
+| Platform login | Not required |
+| Client credential | Header `X-Gemini-Api-Key` (required by gateway) |
+| Gateway | `enabled: true` (audits allow/deny tool use) |
+| Policy | `allow-list` + delegated allow rules for the five tools |
 
-```text
-https://mcp.mcpruntime.org/google-search/mcp
-```
+Without the header the gateway returns `401 missing_credential`. With a valid
+Gemini key, search tools call Gemini Search grounding.
 
-Clients must send `X-Gemini-Api-Key` (Gemini AI Studio key). The gateway is on
-and audits tool calls for usage metrics. Platform login / OAuth is not required.
-
-Example connect config:
-
-```json
-{
-  "mcpServers": {
-    "google-search": {
-      "type": "http",
-      "url": "https://mcp.mcpruntime.org/google-search/mcp",
-      "headers": {
-        "X-Gemini-Api-Key": "<gemini-ai-studio-api-key>"
-      }
-    }
-  }
-}
-```
+Operators may also mount `GEMINI_API_KEY` on the pod as a fallback for local
+smoke; public clients still send the header.
 
 ## Free quota (Search grounding)
 
@@ -86,11 +214,6 @@ Also remember:
 - Each `google_multi_search` can use **up to 3** requests (one per query).
 - `google_craft_query`, `google_open`, and `google_pack_evidence` do **not** use
   Search grounding (`google_open` only fetches the page URL).
-- Model RPM / TPM / RPD caps still apply on top of the Search RPD limit — see
-  [rate limits](https://ai.google.dev/gemini-api/docs/rate-limits) in AI Studio.
-
-Practical free-tier budget with the default model: on the order of **~500
-`google_search` calls/day**, or fewer if you use `google_multi_search`.
 
 ## Tools
 
@@ -102,13 +225,12 @@ Practical free-tier budget with the default model: on the order of **~500
 | `google_open` | No (HTTP fetch) | Short extract from one prior hit / URL (budgeted). |
 | `google_pack_evidence` | No | Citation pack from selected `hit_id`s. |
 
-Default flow: **craft → search → open 0–2 hits → pack → answer**.
-
 ## Configuration (operators)
 
 | Variable | Purpose |
 |---|---|
-| `GEMINI_MODEL` | Defaults to `gemini-2.5-flash` (free-tier Search path). |
+| `GEMINI_API_KEY` | Optional platform-held key (pod Secret). |
+| `GEMINI_MODEL` | Defaults to `gemini-2.5-flash`. |
 | `GEMINI_API_BASE` | Defaults to `https://generativelanguage.googleapis.com/v1beta`. |
 | `GOOGLE_SEARCH_MAX_RESULTS` | Default hit count (capped at 10). |
 | `GOOGLE_SEARCH_MAX_PARALLEL` | Max queries in `google_multi_search`. |
@@ -116,7 +238,7 @@ Default flow: **craft → search → open 0–2 hits → pack → answer**.
 | `GOOGLE_SEARCH_MAX_PACK_CHARS` | Char budget for evidence packs. |
 | `PORT`, `MCP_PATH` | Defaults `8080` and `/mcp`. |
 
-`GET <MCP_PATH>/auth/check` returns 204 when `X-Gemini-Api-Key` is present.
+See `.mcp/servers.yaml` and `manifests/google-search.yaml` for the public deploy.
 
 ## Develop
 
