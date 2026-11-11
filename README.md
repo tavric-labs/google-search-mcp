@@ -18,6 +18,16 @@ Agents are steered to **craft → search → open 0–2 pages → pack → stop*
 
 ## Install in your client
 
+One-click install badges (same HTTPS deeplink pattern used by Perplexity, AWS Labs,
+and other public MCP READMEs — GitHub strips `cursor://` / `vscode:` schemes, so
+badges must use `https://cursor.com/...` and `https://vscode.dev/...`):
+
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-light.svg)](https://cursor.com/en/install-mcp?name=google-search&config=eyJ1cmwiOiJodHRwczovL21jcC5tY3BydW50aW1lLm9yZy9nb29nbGUtc2VhcmNoL21jcCIsImhlYWRlcnMiOnsiWC1HZW1pbmktQXBpLUtleSI6IiR7ZW52OkdFTUlOSV9BUElfS0VZfSJ9fQ%3D%3D)
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=google-search&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.mcpruntime.org%2Fgoogle-search%2Fmcp%22%2C%22headers%22%3A%7B%22X-Gemini-Api-Key%22%3A%22%24%7Binput%3Agemini-api-key%7D%22%7D%7D&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22gemini-api-key%22%2C%22description%22%3A%22Gemini%20AI%20Studio%20API%20Key%22%2C%22password%22%3Atrue%7D%5D)
+[![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=google-search&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.mcpruntime.org%2Fgoogle-search%2Fmcp%22%2C%22headers%22%3A%7B%22X-Gemini-Api-Key%22%3A%22%24%7Binput%3Agemini-api-key%7D%22%7D%7D&inputs=%5B%7B%22type%22%3A%22promptString%22%2C%22id%22%3A%22gemini-api-key%22%2C%22description%22%3A%22Gemini%20AI%20Studio%20API%20Key%22%2C%22password%22%3Atrue%7D%5D&quality=insiders)
+[![Install in Visual Studio](https://img.shields.io/badge/Visual_Studio-Install-C16FDE?style=flat-square&logo=visualstudio&logoColor=white)](https://vs-open.link/mcp-install?%7B%22name%22%3A%22google-search%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.mcpruntime.org%2Fgoogle-search%2Fmcp%22%2C%22headers%22%3A%7B%22X-Gemini-Api-Key%22%3A%22%24%7Binput%3Agemini-api-key%7D%22%7D%7D)
+[![Add to Claude](https://img.shields.io/badge/Add_to-Claude-D97757?style=flat-square&logo=anthropic&logoColor=white)](https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Google%20Search&connectorUrl=https%3A%2F%2Fmcp.mcpruntime.org%2Fgoogle-search%2Fmcp)
+
 Grab a key first: [Google AI Studio → API keys](https://aistudio.google.com/apikey).
 Export it locally (never commit it):
 
@@ -25,18 +35,10 @@ Export it locally (never commit it):
 export GEMINI_API_KEY='...'
 ```
 
-Then use a one-click install where supported, or paste the JSON / TOML below.
-Install links never embed the secret — they read `GEMINI_API_KEY` from the
-environment (or you fill the header after install).
-
-[![Install in Cursor](https://img.shields.io/badge/Cursor-Install-000000?style=for-the-badge&logo=cursor&logoColor=white)](cursor://anysphere.cursor-deeplink/mcp/install?name=google-search&config=eyJ1cmwiOiJodHRwczovL21jcC5tY3BydW50aW1lLm9yZy9nb29nbGUtc2VhcmNoL21jcCIsImhlYWRlcnMiOnsiWC1HZW1pbmktQXBpLUtleSI6IiR7ZW52OkdFTUlOSV9BUElfS0VZfSJ9fQ==)
-[![Install in VS Code](https://img.shields.io/badge/VS%20Code-Install-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=google-search&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.mcpruntime.org%2Fgoogle-search%2Fmcp%22%2C%22headers%22%3A%7B%22X-Gemini-Api-Key%22%3A%22%24%7Binput%3Agemini-api-key%7D%22%7D%7D)
-[![Install in VS Code Insiders](https://img.shields.io/badge/VS%20Code%20Insiders-Install-68217A?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=google-search&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.mcpruntime.org%2Fgoogle-search%2Fmcp%22%2C%22headers%22%3A%7B%22X-Gemini-Api-Key%22%3A%22%24%7Binput%3Agemini-api-key%7D%22%7D%7D)
-[![Add to Claude](https://img.shields.io/badge/Claude-Add%20connector-CC785C?style=for-the-badge&logo=anthropic&logoColor=white)](https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Google%20Search&connectorUrl=https%3A%2F%2Fmcp.mcpruntime.org%2Fgoogle-search%2Fmcp)
-
-Cursor / VS Code install links include header `X-Gemini-Api-Key` (env or prompted
-input). Claude.ai connectors are URL-only — if the UI cannot set a custom header,
-use Claude Code / Cursor / VS Code instead.
+Install links never embed the secret. Cursor resolves `${env:GEMINI_API_KEY}`;
+VS Code / Visual Studio prompt for the key via `${input:gemini-api-key}`.
+Claude.ai connectors are URL-only — if that UI cannot set `X-Gemini-Api-Key`,
+use Claude Code / Cursor / VS Code / Codex instead.
 
 ### Cursor (`~/.cursor/mcp.json`)
 
