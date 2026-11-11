@@ -1,0 +1,54 @@
+version: v1
+servers:
+    - name: google-search
+      description: Token-efficient Google Custom Search with query craft, slim SERPs, selective page open, and citation packs.
+      image: registry.mcpruntime.org/org/google-search-mcp/google-search
+      imageTag: dev
+      route: /google-search/mcp
+      publicPathPrefix: google-search
+      ingressHost: mcp.mcpruntime.org
+      port: 8080
+      replicas: 1
+      envVars:
+        - name: GOOGLE_CSE_ID
+          value: <programmable search engine cx>
+        - name: GOOGLE_CSE_PAPERS_ID
+          value: <optional papers-only cx>
+        - name: GOOGLE_SEARCH_MAX_RESULTS
+          value: "5"
+        - name: GOOGLE_SEARCH_MAX_PARALLEL
+          value: "3"
+      secretEnvVars:
+        - name: GOOGLE_API_KEY
+          secretKeyRef:
+            name: google-search-mcp-secrets
+            key: GOOGLE_API_KEY
+      namespace: mcp-servers
+      tools:
+        - name: google_craft_query
+          description: Design targeted Google queries from a plain-language goal without calling Google.
+          requiredTrust: low
+          sideEffect: read
+        - name: google_search
+          description: Run one Custom Search and return slim hits.
+          requiredTrust: low
+          sideEffect: read
+        - name: google_multi_search
+          description: Run up to three queries in parallel and dedupe hits.
+          requiredTrust: low
+          sideEffect: read
+        - name: google_search_papers
+          description: Search with a papers/pdf bias.
+          requiredTrust: low
+          sideEffect: read
+        - name: google_open
+          description: Extract a short text window from one hit or URL.
+          requiredTrust: medium
+          sideEffect: read
+        - name: google_pack_evidence
+          description: Build a short citation pack from selected hits.
+          requiredTrust: low
+          sideEffect: read
+      policy:
+        mode: allow-list
+        defaultDecision: deny
