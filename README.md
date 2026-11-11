@@ -39,6 +39,33 @@ echo 'GEMINI_API_KEY=...' > .env
 chmod 600 .env
 ```
 
+## Public Runtime URL
+
+Deployed on MCP Runtime public scope (no platform login):
+
+```text
+https://mcp.mcpruntime.org/google-search/mcp
+```
+
+Clients must send `X-Gemini-Api-Key` (Gemini AI Studio key). The gateway is on
+and audits tool calls for usage metrics. Platform login / OAuth is not required.
+
+Example connect config:
+
+```json
+{
+  "mcpServers": {
+    "google-search": {
+      "type": "http",
+      "url": "https://mcp.mcpruntime.org/google-search/mcp",
+      "headers": {
+        "X-Gemini-Api-Key": "<gemini-ai-studio-api-key>"
+      }
+    }
+  }
+}
+```
+
 ## Free quota (Search grounding)
 
 Official Gemini Developer API pricing (check
